@@ -1,0 +1,70 @@
+mps_may_2019_accounts.lst/mps_may_2019_names.lst ethnicities came from http://www.britishfuture.org/articles/52-minority-mps-to-sit-in-most-diverse-uk-parliament-ever/
+
+
+
+We had previously been pulling data from everypolitician.org but this project
+has now stopped (the site is still live but the data has been frozen). It
+would seem that a lot of the data has, however, been merged into WikiData.
+The problem is how to get the data we need out. Fortunately WikiData has
+a SPARQL endpoint you can use to retrieve data: https://query.wikidata.org/
+
+I think the following query brings back all the useful data we need to build
+the gazetteer lists we now use within the app.
+
+SELECT DISTINCT ?itemLabel ?groupLabel ?districtLabel ?twitter_handle ?twitter_id ?genderLabel ?orientationLabel ?ethnicityLabel ?religionLabel WHERE { 
+  ?item p:P39 ?mem .
+  ?mem ps:P39 wd:Q654291 ; pq:P2937 wd:Q85677302 . 
+  OPTIONAL { ?item wdt:P21 ?gender }
+  OPTIONAL { ?item wdt:P140 ?religion }
+  OPTIONAL { ?mem pq:P768  ?district }
+  OPTIONAL { ?mem pq:P4100 ?group }
+  OPTIONAL { ?item p:P2002 ?twitter . ?twitter ps:P2002 ?twitter_handle . ?twitter pq:P6552 ?twitter_id}
+  OPTIONAL { ?item wdt:P172 ?ethnicity }
+  OPTIONAL { ?item wdt:P91 ?orientation }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+  FILTER NOT EXISTS { ?mem pq:P582 ?end }
+} ORDER BY ?itemLabel
+
+Note that this query is specifically for the 33rd sitting of the Dáil (Irish
+parliament). The exact set of parliamentarians to select is done on the third
+line of the query, and would need updating for other parliaments. Also the
+FILTER only really works in the most recent session, otherwise it would
+possibly remove all entries from the result as it filters out any entries
+with an end time.
+
+It would seem that ethnicity, orientation, and religion aren't particularly
+well populated, and even where they do have values they aren't overly consistent
+(i.e. I've seen both gay and homosexuality for orientation) but they are a
+useful starting point.
+
+If we have a project where we check/correct a set of data it may be useful to
+then contribute back by adding in missing data.
+
+NOTES: the data has Joan Collins changing party (31st May 2020) but not the other
+three changes listed on the Wikipedia page https://en.wikipedia.org/wiki/Members_of_the_33rd_D%C3%A1il
+
+
+This does something similar for UK 58th Parliament
+
+
+SELECT DISTINCT ?startLabel ?endLabel ?itemLabel ?groupLabel ?districtLabel ?twitter_handle ?twitter_id ?genderLabel ?orientationLabel ?ethnicityLabel ?religionLabel WHERE { 
+  ?item p:P39 ?mem .
+  ?mem ps:P39 wd:Q77685926 ; pq:P2937 wd:Q77685395 . 
+  ?mem pq:P580 ?start
+  OPTIONAL { ?item wdt:P21 ?gender }
+  OPTIONAL { ?item wdt:P140 ?religion }
+  OPTIONAL { ?mem pq:P768  ?district }
+  OPTIONAL { ?mem pq:P4100 ?group }
+  OPTIONAL { ?item p:P2002 ?twitter . ?twitter ps:P2002 ?twitter_handle . ?twitter pq:P6552 ?twitter_id}
+  OPTIONAL { ?item wdt:P172 ?ethnicity }
+  OPTIONAL { ?item wdt:P91 ?orientation }
+  OPTIONAL { ?mem pq:P582 ?end }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }
+  
+} ORDER BY ?itemLabel
+
+but doesn't remove people with an end date and includes the start and end date.
+This should let us generate a gaz with dates and then a JAPE or Groovy to remove
+those when the date isn't valid. It gives us multiple rows where the handle changes
+as well which is good (see Peter Bone) but doesn't tell us which is the current one
+if that is at all relevant
